@@ -1,0 +1,189 @@
+package com.example.game
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import kotlin.random.Random
+
+class MainActivity : ComponentActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        setContent {
+            GameScreen()
+        }
+    }
+}
+
+data class FallingObject(
+    var x: Float,
+    var y: Float,
+    val isBone: Boolean
+)
+
+@Composable
+fun GameScreen() {
+    val screenWidth = 400f
+    val screenHeight = 800f
+
+    
+    var playerX by remember { mutableStateOf(150f) }
+
+    
+    var hp by remember { mutableStateOf(5) }
+    var score by remember { mutableStateOf(0) }
+
+    
+    val objects = remember {
+        mutableStateListOf<FallingObject>()
+    }
+
+
+    LaunchedEffect(Unit) {
+
+        while (hp > 0) {
+
+            delay(16)
+
+            
+            if (Random.nextFloat() < 0.03f) {
+
+                objects.add(
+                    FallingObject(
+                        x = Random.nextFloat() * 340f,
+                        y = -50f,
+                        isBone = Random.nextBoolean()
+                    )
+                )
+            }
+
+            val iterator = objects.iterator()
+
+            while (iterator.hasNext()) {
+
+                val obj = iterator.next()
+
+              
+                obj.y += 10f
+                val hit =
+                    obj.y > 650f &&
+                    obj.x in (playerX - 40f)..(playerX + 80f)
+
+                if (hit) {
+
+                    if (obj.isBone) {
+                        hp--
+                    } else {
+                        score++
+                    }
+
+                    iterator.remove()
+                }
+
+                // Удаление за экраном
+                else if (obj.y > screenHeight) {
+                    iterator.remove()
+                }
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+
+            // Движение пальцем
+            .pointerInput(Unit) {
+
+                detectDragGestures { _, dragAmount ->
+
+                    playerX += dragAmount.x
+
+                    // Ограничение
+                    if (playerX < 0f)
+                        playerX = 0f
+
+                    if (playerX > 320f)
+                        playerX = 320f
+                }
+            }
+    ) {
+
+        for (x in 0..4) {
+            for (y in 0..8) {
+
+                Image(
+                    painter = painterResource(R.drawable.tile),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .offset(
+                            (x * 100).dp,
+                            (y * 100).dp
+                        )
+                        .size(100.dp)
+                )
+            }
+        }
+        Image(
+            painter = painterResource(R.drawable.player),
+            contentDescription = null,
+            modifier = Modifier
+                .offset(playerX.dp, 680.dp)
+                .size(80.dp)
+        )
+
+        objects.forEach { obj ->
+
+            Image(
+                painter = painterResource(
+                    if (obj.isBone)
+                        R.drawable.bone
+                    else
+                        R.drawable.baguette
+                ),
+                contentDescription = null,
+                modifier = Modifier
+                    .offset(obj.x.dp, obj.y.dp)
+                    .size(48.dp)
+            )
+        }
+
+        Text(
+            text = "HP: $hp",
+            color = Color.Red,
+            modifier = Modifier.offset(16.dp, 16.dp)
+        )
+
+        Text(
+            text = "Score: $score",
+            color = Color.White,
+            modifier = Modifier.offset(16.dp, 40.dp)
+        )
+
+        if (hp <= 0) {
+
+            Text(
+                text = "GAME OVER",
+                color = Color.Red,
+                modifier = Modifier.offset(120.dp, 350.dp)
+            )
+        }
+    }
+}
